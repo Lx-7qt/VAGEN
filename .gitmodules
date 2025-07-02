@@ -1,3 +1,7 @@
 # [submodule "verl"]
 # 	path = verl
 # 	url = https://github.com/JamesKrW/verl.git
+[submodule "vagen/env/spatial"]
+	path = vagen/env/spatial
+	url = https://github.com/williamzhangNU/RAGEN/ragen/env/spatial.git
+	branch = spatial_new
