@@ -7,7 +7,7 @@ from typing import Optional
 from PIL import Image
 
 from vagen.env.spatial.config import SpatialGymConfig
-from vagen.env.spatial.Base import (
+from vagen.env.spatial.ToS_Base.tos_base import (
     EvaluationManager,
     Room,
     ActionSequence,
@@ -19,7 +19,7 @@ from vagen.env.spatial.Base import (
     ObserveAction,
     TermAction
 )
-from vagen.env.spatial.Base.utils.room_utils import initialize_room_from_json
+from vagen.env.spatial.ToS_Base.tos_base.utils.room_utils import initialize_room_from_json
 from vagen.env.spatial.utils.generate_history import AutoExplore
 
 
