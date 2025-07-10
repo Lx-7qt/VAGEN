@@ -104,7 +104,8 @@ class SpatialGym(gym.Env):
         img = self.image_map[key]  # must exist
 
         return {
-            'filename': key,
+            #'filename': key,
+            'prompt': 'Here is the view you currently have',
             'multi_modal_data': img
         }
 
