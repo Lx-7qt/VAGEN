@@ -230,64 +230,46 @@ def generate_allo2ego_objects(
 
 def initialize_room_from_json(json_data: Dict[str, Any]) -> Room:
     """
-    Initialize a room from JSON metadata configuration.
-    
-    Args:
-        json_data: Dictionary containing room configuration with keys:
-            - objects: List of object configurations
-            - room_size: [width, height] of the room
-            - original_cam_position: Camera position info
-            - other metadata fields
-    
-    Returns:
-        Room: Initialized room object with objects and agent
+    Initialize a Room from your metadata JSON, which now has:
+      - objects: list of {oid, model, pos:{x,y,z}, rot:{x,y,z}, size:[w,h]}
+      - cameras: list of {id, label, position:{x,y,z}, rotation:{y}}
+      - room_size, screen_size, etc.
     """
+    # 1) Parse all objects
     objects = []
-    
-    # Parse objects from JSON
-    for obj_data in json_data.get('objects', []):
-        # Extract position (convert from 3D to 2D, using x,z coordinates)
-        pos_3d = obj_data['position']
-        pos_2d = np.array([pos_3d['x'], pos_3d['z']])
-        
-        # Extract rotation and convert to orientation vector
-        rotation_x = obj_data['rotation']['x'] 
-        rotation_z = obj_data['rotation']['z'] 
-        ori_vector = rotation_to_orientation_vector(rotation_x, rotation_z)
-        
-        # Create object
-        obj = Object(
-            name=obj_data['model'],  # Using model name as object name
-            pos=pos_2d,
-            ori=ori_vector
-        )
-        objects.append(obj)
-    
-    # Create agent 
-    agent = Agent()
-    
-    # Create and return room
-    room = Room(
-        objects=objects,
-        name='room_from_json',
-        agent=agent
-    )
-    
-    return room
+    for obj in json_data.get("objects", []):
+        name = f"{obj['model']}_{obj['oid']}"
+        pos = np.array([obj["pos"]["x"], obj["pos"]["z"]])
+        ori = rotation_to_orientation_vector(obj["rot"]["y"])
+        objects.append(Object(name=name, pos=pos, ori=ori))
 
-def rotation_to_orientation_vector(rotation_x_degrees: float, rotation_z_degrees: float) -> np.ndarray:
+    agent = Agent()
+
+    # 2) Room size metadata
+    room_name = json_data.get("name", "room_from_json")
+    room_size = tuple(json_data.get("room_size", []))  # if your Room supports it
+
+    # 3) Build and return
+    return Room(
+        objects=objects,
+        name=room_name,
+        agent=agent,
+        size=room_size     
+    )
+def rotation_to_orientation_vector(y: int) -> np.ndarray:
     """
     Convert rotation in degrees to 2D orientation vector.
     """
     # Convert degrees to radians
-    angle_radx = np.radians(rotation_x_degrees)
-    angle_radz = np.radians(rotation_z_degrees)
-    """Calculate orientation vector
-    # In Unity/3D space: 0° = facing positive Z, 90° = facing positive X
-    x_component = np.sin(angle_radx)
-    z_component = np.cos(angle_radz)"""
+    if y == 0:
+        return np.array([1,0])
+    elif y == 90:
+        return np.array([0,1])
+    elif y == 180:
+        return np.array([-1,0])
+
     #placeholder value
-    return np.array([1,0])
+    return np.array([0,-1])
 
 if __name__ == '__main__':
     # Example with the provided JSON data

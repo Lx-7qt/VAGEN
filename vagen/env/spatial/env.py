@@ -3,7 +3,7 @@ import numpy as np
 import re
 import os
 import json
-from typing import Optional
+from typing import Optional, Dict, Any
 from PIL import Image
 
 from vagen.env.spatial.config import SpatialGymConfig
@@ -59,7 +59,7 @@ def _vector_to_dir(ori: np.ndarray) -> str:
 class SpatialGym(gym.Env):
     metadata = {'render.modes': ['multi_modal']}
 
-    def __init__(self, data_dir, config: SpatialGymConfig):
+    def __init__(self, config: SpatialGymConfig):
         super().__init__()
         self.config = config
         self.is_exp_stage = None
@@ -67,15 +67,15 @@ class SpatialGym(gym.Env):
 
 
         # Load metadata JSON
-        json_dir = os.path.join(data_dir, "meta_data.json")
+        json_dir = os.path.join(self.config.data_dir, "meta_data.json")
         self.current_data = json.load(open(json_dir, 'r'))
-        self.image_dir = data_dir
+        self.image_dir = self.config.data_dir
 
         # Preload images into lookup map
         self.image_map = {}
         for entry in self.current_data.get('images', []):
-            key = (entry['position'], entry['direction'])
-            filename = entry['filename']
+            key = (entry['cam_id'], entry['direction'])
+            filename = entry['file']
             # Ensure .png extension
             if not filename.lower().endswith('.png'):
                 filename = f"{filename}.png"
@@ -95,17 +95,20 @@ class SpatialGym(gym.Env):
         self.evaluation_manager = None
         self.n_novel_queries = 0
         self.n_valid_queries = 0
-        self.current_position = 'original'
+        self.current_position = 'central'
         self.current_direction = 'north'
 
     def _create_observation(self) -> dict:
         """Return dict with text and the single correct image."""
         key = (self.current_position, self.current_direction)
         img = self.image_map[key]  # must exist
-
+        obs_str = (
+            f"You are at the **{self.current_position}** facing **{self.current_direction}**.\n"
+            "Refer to the image below for your current view.\n"
+        )
         return {
             #'filename': key,
-            'prompt': 'Here is the view you currently have',
+            'prompt': obs_str,
             'multi_modal_data': img
         }
 
@@ -124,7 +127,7 @@ class SpatialGym(gym.Env):
         self.evaluation_manager = EvaluationManager(self.config.eval_tasks, self.np_random)
 
         # Initial viewer state
-        self.current_position = 'original'
+        self.current_position = 'central'
         self.current_direction = _vector_to_dir(self.room_s_0.agent.ori)
 
         return self._create_observation(), {}
@@ -155,7 +158,7 @@ class SpatialGym(gym.Env):
                     self.current_direction = {0:'north', 90:'east', 180:'south', 270:'west'}[act.degrees]
             # Handle return
             if isinstance(final, ReturnAction):
-                self.current_position = 'original'
+                self.current_position = 'central'
                 self.current_direction = _vector_to_dir(self.room_s_0.agent.ori)
 
             if isinstance(final, TermAction) or self.max_exp_steps < 0:
@@ -208,7 +211,7 @@ if __name__ == "__main__":
         os.path.dirname(__file__),
             "my_output/"
         )
-        env = SpatialGym(path, config)
+        env = SpatialGym(config)
         obs, info = env.reset(seed=42)
         print(f"room: {env.room_s_0}")
         print(f"Initial observation <<{obs}>>")
@@ -241,12 +244,8 @@ if __name__ == "__main__":
             eval_tasks=[{"task_type": "dir", "task_kwargs": {}}],
             max_exp_steps=20
         )
-        path = os.path.join(
-        os.path.dirname(__file__),
-            "my_output/"
-        )
 
-        env = SpatialGym(path, config)
+        env = SpatialGym(config)
         obs, info = env.reset(seed=123)
         print(f"room: {env.room_s_0}")
         print(f"Initial observation contains action format: {'Available Actions' in obs}")
@@ -256,7 +255,7 @@ if __name__ == "__main__":
 
             "Rotate(90); Observe()",
             "Rotate(180); Observe()",
-            "Rotate(90);Move(blue_side_chair_3386958);Observe()",
+            "Rotate(90); Move(obj1); Observe()",
             "Observe()"
         ]
         

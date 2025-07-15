@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List
 import sys
+from typing import Dict, Any
 
 from ..core.room import Room
 from ..core.constant import CANDIDATE_OBJECTS
@@ -224,6 +225,48 @@ def generate_allo2ego_objects(
         objects.append(Object(name=names[i], pos=new_pos))
     
     return objects
+
+def rotation_to_orientation_vector(y: int) -> np.ndarray:
+    """
+    Convert rotation in degrees to 2D orientation vector.
+    """
+    # Convert degrees to radians
+    if y == 0:
+        return np.array([1,0])
+    elif y == 90:
+        return np.array([0,1])
+    elif y == 180:
+        return np.array([-1,0])
+
+    return np.array([0,-1])
+
+def initialize_room_from_json(json_data: Dict[str, Any]) -> Room:
+    """
+    Initialize a Room from your metadata JSON, which now has:
+      - objects: list of {oid, model, pos:{x,y,z}, rot:{x,y,z}, size:[w,h]}
+      - cameras: list of {id, label, position:{x,y,z}, rotation:{y}}
+      - room_size, screen_size, etc.
+    """
+    # 1) Parse all objects
+    objects = []
+    for obj in json_data.get("objects", []):
+        name = f"{obj['model']}_{obj['oid']}"
+        pos = np.array([obj["pos"]["x"], obj["pos"]["z"]])
+        ori = rotation_to_orientation_vector(obj["rot"]["y"])
+        objects.append(Object(name=name, pos=pos, ori=ori))
+
+    agent = Agent()
+
+    # 2) Room size metadata
+    room_name = json_data.get("name", "room_from_json")
+    #room_size = tuple(json_data.get("room_size", []))  # if your Room supports it
+
+    # 3) Build and return
+    return Room(
+        objects=objects,
+        name=room_name,
+        agent=agent,    
+    )
 
 
 

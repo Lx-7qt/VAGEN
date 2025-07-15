@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from omegaconf import ListConfig, OmegaConf
-
+import os
 from vagen.env.spatial.Base import CANDIDATE_OBJECTS
 
 @dataclass
@@ -25,7 +25,10 @@ class SpatialGymConfig:
     n_objects: int = 3
     candidate_objects: List[str] = field(default_factory=lambda: CANDIDATE_OBJECTS)
     generation_type: str = "rand"
-    
+    data_dir = os.path.join(
+        os.path.dirname(__file__),
+            "output/run_00/"
+        )
     # Exploration configuration
     exp_type: str = 'passive'
     perspective: str = 'ego'
