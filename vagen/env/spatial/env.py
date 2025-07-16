@@ -75,11 +75,11 @@ class SpatialGym(gym.Env):
         for cam in self.current_data.get('cameras', []):
             cid = cam['id']
             if cid == 'central':
-                continue
+                self.name_to_cam[cid] = cid
             pos = (cam['position']['x'], cam['position']['z'])
             for obj in self.current_data.get('objects', []):
                 if pos == (obj['pos']['x'], obj['pos']['z']):
-                    name = f"{obj['model']}_{obj['oid']}"
+                    name = f"{obj['model']}"
                     self.name_to_cam[name] = cid
                     break
         # Central camera id
@@ -116,7 +116,8 @@ class SpatialGym(gym.Env):
 
     def _create_observation(self) -> dict:
         """Return dict with text and the single correct image."""
-        key = (self.current_position, self.current_direction)
+        cid = self.name_to_cam[self.current_position]
+        key = (cid, self.current_direction)
         img = self.image_map[key]  # must exist
         obs_str = (
             f"You are at the **{self.current_position}** facing **{self.current_direction}**.\n"
@@ -140,7 +141,7 @@ class SpatialGym(gym.Env):
         self.is_exp_stage = (self.config.exp_type != 'passive')
         if self.is_exp_stage:
             self.exploration_manager = ExplorationManager(self.room_s_0)
-        self.evaluation_manager = EvaluationManager(self.config, self.np_random)
+        self.evaluation_manager = EvaluationManager(self.config.eval_tasks, self.np_random)
 
         # Initial viewer state
         self.current_position = 'central'
@@ -148,7 +149,18 @@ class SpatialGym(gym.Env):
 
         return self._create_observation(), {}
 
+
+
     def step(self, action: str):
+        """
+        Process agent actions in the spatial gym environment.
+
+        Returns:
+            obs: either a question string or “Task finished”
+            reward: 0 for exploration, evaluation reward afterwards
+            done: whether the episode is over
+            info: always empty during exploration
+        """
         reward = 0
         done = False
         info = {}
@@ -156,32 +168,34 @@ class SpatialGym(gym.Env):
         if self.is_exp_stage:
             self.max_exp_steps -= 1
             seq = ActionSequence.parse(action)
-            if not seq or not isinstance(seq.final_action, (ObserveAction, TermAction)):
+            if not seq or seq.final_action is None:
+                # Invalid action: still return current observation
                 return self._create_observation(), -0.1, False, {}
 
             msg, exp_info = self.exploration_manager.execute_action_sequence(seq)
-
-            # Update viewer state from exp_info
+            # Update view on move/return
             if 'target_name' in exp_info:
-                tgt = exp_info['target_name']
-                if tgt == 'agent_anchor':
-                    self.current_position = self.central_cam_id
-                else:
-                    self.current_position = self.name_to_cam.get(tgt, self.current_position)
+                self.current_position = exp_info['target_name']
             if 'degrees' in exp_info:
                 self.current_direction = {0:'north',90:'east',180:'south',270:'west'}[exp_info['degrees']]
 
-            # End exploration
+            # Determine observation: only show images if Observe() was final
+            if isinstance(seq.final_action, ObserveAction):
+                obs = self._create_observation()
+            else:
+                obs = msg
+
             if isinstance(seq.final_action, TermAction) or self.max_exp_steps < 0:
                 self.is_exp_stage = False
-
-            return self._create_observation(), reward, done, info
-
+            return obs, reward, done, info
         else:
-            print(self.evaluation_manager.evaluate_answer(action))
             correct, reward, eval_info = self.evaluation_manager.evaluate_answer(action)
             done = not self.evaluation_manager.next_task()
-            return self._create_observation(), reward, done, eval_info
+            # Always show image observation during evaluation
+            obs = self._create_observation()
+            return obs, reward, done, eval_info
+
+
     def render(self, mode=None):
         return self._create_observation()
 
@@ -266,10 +280,9 @@ if __name__ == "__main__":
         # Test exploration phase
         exploration_actions = [
 
-            "Rotate(90); Observe()",
-            "Rotate(180); Observe()",
-            "Rotate(90); Move(obj1); Observe()",
-            "Observe()"
+            "Movement: [Rotate(90)]\nFinal: Observe()",
+            "Movement: [Rotate(180)]\nFinal: Observe()",
+            "Movement: [Move(chair_willisau_riale), Rotate(180)]\nFinal: Observe()"
         ]
         
         step_count = 0
