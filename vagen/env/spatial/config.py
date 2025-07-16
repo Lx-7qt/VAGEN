@@ -25,9 +25,10 @@ class SpatialGymConfig:
     n_objects: int = 3
     candidate_objects: List[str] = field(default_factory=lambda: CANDIDATE_OBJECTS)
     generation_type: str = "rand"
+    run = 0
     data_dir = os.path.join(
         os.path.dirname(__file__),
-            "output/run_00/"
+            f"output/run_0{run}/"
         )
     # Exploration configuration
     exp_type: str = 'passive'

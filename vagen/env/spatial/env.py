@@ -126,7 +126,8 @@ class SpatialGym(gym.Env):
         return {
             #'filename': key,
             'prompt': obs_str,
-            'multi_modal_data': img
+            'multi_modal_data': img,
+            'Available Actions': "Move(), Rotate(), Observe(), Term()"
         }
 
     def reset(self, seed: int = None):
@@ -139,7 +140,7 @@ class SpatialGym(gym.Env):
         self.room_s_0 = initialize_room_from_json(self.current_data)
         self.room_s_t = self.room_s_0.copy()
         self.is_exp_stage = (self.config.exp_type != 'passive')
-        if self.is_exp_stage:
+        if self.config.exp_type == 'active':
             self.exploration_manager = ExplorationManager(self.room_s_0)
         self.evaluation_manager = EvaluationManager(self.config.eval_tasks, self.np_random)
 
@@ -189,6 +190,7 @@ class SpatialGym(gym.Env):
                 self.is_exp_stage = False
             return obs, reward, done, info
         else:
+            print(self.evaluation_manager.evaluate_answer(action))
             correct, reward, eval_info = self.evaluation_manager.evaluate_answer(action)
             done = not self.evaluation_manager.next_task()
             # Always show image observation during evaluation
@@ -274,6 +276,8 @@ if __name__ == "__main__":
 
         env = SpatialGym(config)
         obs, info = env.reset(seed=123)
+        traj_dir = os.path.join(os.path.dirname(__file__), "trajectory/")
+        os.makedirs(traj_dir, exist_ok=True)
         print(f"room: {env.room_s_0}")
         print(f"Initial observation contains action format: {'Available Actions' in obs}")
         
@@ -282,13 +286,19 @@ if __name__ == "__main__":
 
             "Movement: [Rotate(90)]\nFinal: Observe()",
             "Movement: [Rotate(180)]\nFinal: Observe()",
-            "Movement: [Move(chair_willisau_riale), Rotate(180)]\nFinal: Observe()"
+            "Movement: [Move(chair_willisau_riale), Rotate(180)]\nFinal: Observe()",
+            "Movement: []\nFinal: Term()"
         ]
         
         step_count = 0
         for action in exploration_actions:
             if env.is_exp_stage:
                 obs, reward, done, info = env.step(action)
+                if isinstance(obs, dict) and 'multi_modal_data' in obs:
+                    img = obs['multi_modal_data']  # a PIL.Image
+                    fname = f"step_{step_count:02d}.png"
+                    img.save(os.path.join(traj_dir, fname))
+                    print(f"  → Saved observation image to trajectory/{fname}")
                 step_count += 1
                 print(f"Observation <<{obs}>>, Exploration step {step_count}: Action='{action}', Valid response received")
                 if not env.is_exp_stage:
