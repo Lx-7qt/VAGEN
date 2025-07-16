@@ -70,7 +70,23 @@ class SpatialGym(gym.Env):
         json_dir = os.path.join(self.config.data_dir, "meta_data.json")
         self.current_data = json.load(open(json_dir, 'r'))
         self.image_dir = self.config.data_dir
-
+        # Map object names to camera IDs
+        self.name_to_cam = {}
+        for cam in self.current_data.get('cameras', []):
+            cid = cam['id']
+            if cid == 'central':
+                continue
+            pos = (cam['position']['x'], cam['position']['z'])
+            for obj in self.current_data.get('objects', []):
+                if pos == (obj['pos']['x'], obj['pos']['z']):
+                    name = f"{obj['model']}_{obj['oid']}"
+                    self.name_to_cam[name] = cid
+                    break
+        # Central camera id
+        self.central_cam_id = next(
+            (c['id'] for c in self.current_data.get('cameras', []) if c['id']=='central'),
+            None
+        )
         # Preload images into lookup map
         self.image_map = {}
         for entry in self.current_data.get('images', []):
@@ -124,7 +140,7 @@ class SpatialGym(gym.Env):
         self.is_exp_stage = (self.config.exp_type != 'passive')
         if self.is_exp_stage:
             self.exploration_manager = ExplorationManager(self.room_s_0)
-        self.evaluation_manager = EvaluationManager(self.config.eval_tasks, self.np_random)
+        self.evaluation_manager = EvaluationManager(self.config, self.np_random)
 
         # Initial viewer state
         self.current_position = 'central'
@@ -140,35 +156,32 @@ class SpatialGym(gym.Env):
         if self.is_exp_stage:
             self.max_exp_steps -= 1
             seq = ActionSequence.parse(action)
-            if not seq:
-                return self._create_observation(), -0.1, False, {}
-
-            # enforce final action type
-            final = seq.final_action
-            if not isinstance(final, (ObserveAction, TermAction)):
+            if not seq or not isinstance(seq.final_action, (ObserveAction, TermAction)):
                 return self._create_observation(), -0.1, False, {}
 
             msg, exp_info = self.exploration_manager.execute_action_sequence(seq)
 
-            # Update viewer state by replaying all motion actions
-            for act in seq.motion_actions:
-                if isinstance(act, MoveAction):
-                    self.current_position = act.target
-                elif isinstance(act, RotateAction):
-                    self.current_direction = {0:'north', 90:'east', 180:'south', 270:'west'}[act.degrees]
-            # Handle return
-            if isinstance(final, ReturnAction):
-                self.current_position = 'central'
-                self.current_direction = _vector_to_dir(self.room_s_0.agent.ori)
+            # Update viewer state from exp_info
+            if 'target_name' in exp_info:
+                tgt = exp_info['target_name']
+                if tgt == 'agent_anchor':
+                    self.current_position = self.central_cam_id
+                else:
+                    self.current_position = self.name_to_cam.get(tgt, self.current_position)
+            if 'degrees' in exp_info:
+                self.current_direction = {0:'north',90:'east',180:'south',270:'west'}[exp_info['degrees']]
 
-            if isinstance(final, TermAction) or self.max_exp_steps < 0:
+            # End exploration
+            if isinstance(seq.final_action, TermAction) or self.max_exp_steps < 0:
                 self.is_exp_stage = False
+
             return self._create_observation(), reward, done, info
+
         else:
+            print(self.evaluation_manager.evaluate_answer(action))
             correct, reward, eval_info = self.evaluation_manager.evaluate_answer(action)
             done = not self.evaluation_manager.next_task()
             return self._create_observation(), reward, done, eval_info
-
     def render(self, mode=None):
         return self._create_observation()
 

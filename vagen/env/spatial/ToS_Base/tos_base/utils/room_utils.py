@@ -250,7 +250,7 @@ def initialize_room_from_json(json_data: Dict[str, Any]) -> Room:
     # 1) Parse all objects
     objects = []
     for obj in json_data.get("objects", []):
-        name = f"{obj['model']}_{obj['oid']}"
+        name = f"{obj['model']}"
         pos = np.array([obj["pos"]["x"], obj["pos"]["z"]])
         ori = rotation_to_orientation_vector(obj["rot"]["y"])
         objects.append(Object(name=name, pos=pos, ori=ori))
