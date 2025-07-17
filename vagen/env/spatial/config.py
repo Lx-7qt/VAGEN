@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from omegaconf import ListConfig, OmegaConf
 import os
-from vagen.env.spatial.Base import CANDIDATE_OBJECTS
+from vagen.env.spatial.ToS_Base.tos_base import CANDIDATE_OBJECTS
 
 @dataclass
 class SpatialGymConfig:

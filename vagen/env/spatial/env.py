@@ -191,7 +191,7 @@ class SpatialGym(gym.Env):
             return obs, reward, done, info
         else:
             print(self.evaluation_manager.evaluate_answer(action))
-            correct, reward, eval_info = self.evaluation_manager.evaluate_answer(action)
+            correct, eval_info = self.evaluation_manager.evaluate_answer(action)
             done = not self.evaluation_manager.next_task()
             # Always show image observation during evaluation
             obs = self._create_observation()
@@ -211,6 +211,7 @@ class SpatialGym(gym.Env):
 
     def get_exp_efficiency(self) -> dict:
         if self.exploration_manager:
+            #print(self.exploration_manager.get_exploration_efficiency())
             return self.exploration_manager.get_exploration_efficiency()
         return {}
 
@@ -320,7 +321,7 @@ if __name__ == "__main__":
         # Check exploration efficiency
         exp_eff = env.get_exp_efficiency()
         print(f"Exploration coverage: {exp_eff['coverage']:.2f}")
-        print(f"Novel queries: {exp_eff['n_novel_queries']}/{exp_eff['n_valid_queries']}")
+        print(f"Novel queries: {exp_eff['n_valid_queries'] - exp_eff['n_redundant_queries']}/{exp_eff['n_valid_queries']}")
         print("Active exploration test completed.\n")
 
     def test_different_generation_types():

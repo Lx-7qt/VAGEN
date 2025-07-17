@@ -5,7 +5,7 @@ import numpy as np
 from collections import Counter
 
 from typing import List, Tuple, Dict
-from vagen.env.spatial.Base import (
+from vagen.env.spatial.ToS_Base.tos_base import (
     Room,
     DirectionalGraph,
     DirPair,
