@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 from PIL import Image
 
 from vagen.env.spatial.config import SpatialGymConfig
+from vagen.env.spatial.visualization import visualize_turns
 from vagen.env.spatial.ToS_Base.tos_base import (
     EvaluationManager,
     Room,
@@ -292,6 +293,7 @@ if __name__ == "__main__":
         ]
         
         step_count = 0
+        collected = []
         for action in exploration_actions:
             if env.is_exp_stage:
                 obs, reward, done, info = env.step(action)
@@ -300,6 +302,7 @@ if __name__ == "__main__":
                     fname = f"step_{step_count:02d}.png"
                     img.save(os.path.join(traj_dir, fname))
                     print(f"  → Saved observation image to trajectory/{fname}")
+                collected.append(obs)
                 step_count += 1
                 print(f"Observation <<{obs}>>, Exploration step {step_count}: Action='{action}', Valid response received")
                 if not env.is_exp_stage:
@@ -307,7 +310,10 @@ if __name__ == "__main__":
                     break
             else:
                 break
-
+        mosaic = visualize_turns(collected, image_key='multi_modal_data')
+        os.makedirs(traj_dir, exist_ok=True)
+        mosaic.save(os.path.join(traj_dir, "trajectory_mosaic.png"))
+        print("Saved full trajectory mosaic to trajectory/trajectory_mosaic.png")
         print(f"all objects in exploration manager: {env.exploration_manager.exploration_room.all_objects}")
         print(f"Exploration graph: {env.exploration_manager.exp_graph.to_dict()}")
         
