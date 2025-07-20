@@ -8,12 +8,12 @@ class OpenAIModelConfig(BaseModelConfig):
     """Configuration for OpenAI API model interface."""
     
     # OpenAI specific parameters
-    api_key: Optional[str] = None  # If None, will use environment variable
+    api_key: Optional[str] = ""  # If None, will use environment variable
     organization: Optional[str] = None
     base_url: Optional[str] = None  # For custom endpoints
     
     # Model parameters
-    model_name: str = "gpt-4o"
+    model_name: str = "gpt-4.1-nano"
     max_retries: int = 3
     timeout: int = 60
     

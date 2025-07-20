@@ -168,11 +168,12 @@ class SpatialGym(gym.Env):
         info = {}
 
         if self.is_exp_stage:
+            reward = -0.1
             self.max_exp_steps -= 1
             seq = ActionSequence.parse(action)
             if not seq or seq.final_action is None:
                 # Invalid action: still return current observation
-                return self._create_observation(), -0.1, False, {}
+                return self._create_observation(), -0.5, False, {}
 
             msg, exp_info = self.exploration_manager.execute_action_sequence(seq)
             # Update view on move/return
@@ -189,10 +190,14 @@ class SpatialGym(gym.Env):
 
             if isinstance(seq.final_action, TermAction) or self.max_exp_steps < 0:
                 self.is_exp_stage = False
+            if exp_info['redundant']:
+                reward = -1
             return obs, reward, done, info
         else:
-            print(self.evaluation_manager.evaluate_answer(action))
+            #print(self.evaluation_manager.evaluate_answer(action))
             correct, eval_info = self.evaluation_manager.evaluate_answer(action)
+            if correct:
+                reward = 1
             done = not self.evaluation_manager.next_task()
             # Always show image observation during evaluation
             obs = self._create_observation()
@@ -304,7 +309,7 @@ if __name__ == "__main__":
                     print(f"  → Saved observation image to trajectory/{fname}")
                 collected.append(obs)
                 step_count += 1
-                print(f"Observation <<{obs}>>, Exploration step {step_count}: Action='{action}', Valid response received")
+                print(f"Observation <<{obs}>>, Exploration step {step_count}: Action='{action}', Valid response received, Reward = {reward}")
                 if not env.is_exp_stage:
                     print("Transitioned to evaluation phase")
                     break
